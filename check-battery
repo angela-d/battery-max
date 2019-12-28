@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# modify the following to suit
+BAT_PATH=/sys/class/power_supply/BAT0/
+AVAIL=$(cat $BAT_PATH"capacity")
+MIN=20
+MAX=80
+NOTIFY_TITLE="Battery Level Threshold Met"
+NOTIFY_MSG="Battery level is at "
+ICON="battery"
+FREQ=15
+
+
+function confirm_path() {
+  if [ ! -e $BAT_PATH ];
+  then
+    echo "$BAT_PATH not found; adjust your path in this script if your environment varies.  Exiting."
+    exit 1
+  fi
+
+  if [ "$(whereis notify-send | awk '{ print $2 }')" == "" ];
+  then
+    echo "notify-send is missing.  Install it and try again."
+    exit 1
+  fi
+}
+
+function words() {
+  if [ -e ~/.battery-threshold-triggered ] && [ "$(find ~/.battery-threshold-triggered -mmin -$FREQ)" ];
+  then
+    # an alarm was triggered in the last $FREQ min, skip sending any more
+    true
+  else
+    notify-send -i "$ICON" "$NOTIFY_TITLE" -u critical "$NOTIFY_MSG $AVAIL%"
+    touch ~/.battery-threshold-triggered
+  fi
+}
+
+# make sure everything is where its expected to be
+confirm_path
+
+
+# trigger the notification if thresholds are met
+if [ "$AVAIL" -le $MIN ] || [ "$AVAIL" -ge $MAX ];
+then
+  words
+fi
